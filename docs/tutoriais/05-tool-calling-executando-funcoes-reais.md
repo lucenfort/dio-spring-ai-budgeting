@@ -1,28 +1,27 @@
-# Aula 05 — Tool Calling: Executando Funções Reais com IA
+# 05 — Tool Calling: Execução de Métodos Java pelo LLM
 
-- **Vídeo correspondente**: `Tool Calling Executando Funções Reais com IA.mp4` (~10m25s)
-- **Etapa do Projeto**: Uso da anotação `@Tool`, registro em `.defaultTools(...)`, ativação de logs `DEBUG` e criação do `ToolCallingIT`.
-
----
-
-## 🎯 1. Objetivo da Aula
-
-Aprender como funciona o recurso de **Tool Calling (Function Calling)** no Spring AI. Em vez de o modelo de linguagem apenas gerar texto (ou tentar adivinhar cálculos e dados do sistema), ele identifica quando precisa chamar um método Java anotado com `@Tool`, solicita sua execução ao Spring AI (`DefaultToolCallingManager`) e usa o retorno real da função para formular a resposta final.
+- **Escopo**: Anotação `@Tool`, registro via `.defaultTools(...)`, diagnóstico em nível `DEBUG` e `ToolCallingIT`.
 
 ---
 
-## 🛠️ 2. Passo a Passo de Implementação
+## 1. Objetivo
 
-### Passo 2.1 — Ativar Logs de Debug do Spring AI
-No arquivo [`src/main/resources/application.properties`](../../src/main/resources/application.properties), adicione:
+Configurar o mecanismo de **Tool Calling** do Spring AI para que o modelo de linguagem delegue operações determinísticas e regras de negócio a métodos Java anotados com `@Tool`.
+
+---
+
+## 2. Implementação
+
+### 2.1. Log de Diagnóstico (`application.properties`)
+Em [`src/main/resources/application.properties`](../../src/main/resources/application.properties):
 
 ```properties
 logging.level.org.springframework.ai=DEBUG
 ```
-Com essa propriedade ativa, o console exibirá os logs do `DefaultToolCallingManager` e `MethodToolCallback` sempre que a IA invocar uma ferramenta Java.
+Habilita o rastreamento de chamadas gerenciadas por `DefaultToolCallingManager` e `MethodToolCallback`.
 
-### Passo 2.2 — Criar o Teste de Integração `ToolCallingIT.java`
-Crie o arquivo [`src/test/java/dio/budgeting/ToolCallingIT.java`](../../src/test/java/dio/budgeting/ToolCallingIT.java):
+### 2.2. Teste de Integração (`ToolCallingIT.java`)
+Arquivo [`src/test/java/dio/budgeting/ToolCallingIT.java`](../../src/test/java/dio/budgeting/ToolCallingIT.java):
 
 ```java
 package dio.budgeting;
@@ -54,7 +53,6 @@ public class ToolCallingIT {
                 .call().content();
 
         assertThat(response).contains("0");
-        System.out.println(response);
     }
 
     static class MathTools {
@@ -73,15 +71,10 @@ public class ToolCallingIT {
 
 ---
 
-## ▶️ 3. Como Executar e Testar
+## 3. Execução
 
-Execute o teste e observe no console as linhas de `DEBUG` mostrando a chamada das funções `sum` e `diff`:
 ```bash
 ./gradlew test --tests "dio.budgeting.ToolCallingIT" --info
 ```
 
----
-
-## ✨ 4. Como Refinar no Repositório
-
-- **Descrições claras em `@Tool` e `@ToolParam`**: O LLM decide qual método chamar e como preencher seus parâmetros lendo exclusivamente o nome e a `description` das anotações `@Tool` e `@ToolParam`. Escreva descrições precisas e sem ambiguidade.
+> A seleção da tool pelo LLM depende diretamente dos metadados declarados em `@Tool(name, description)` e `@ToolParam(description)`.

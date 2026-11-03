@@ -1,30 +1,28 @@
-# Aula 09 — Persistência e Infraestrutura: Configurando o Banco com Docker
+# 09 — Persistência e Infraestrutura com Docker e Spring Data JPA
 
-- **Vídeo correspondente**: `Persistência e Infraestrutura Configurando o Banco com Docker.mp4` (~24m12s)
-- **Etapa do Projeto**: Adição do MySQL com `spring-boot-docker-compose` (`compose.yml`) e implementação da camada `infrastructure.persistence` (`TransactionEntity`, `TransactionEntityRepository`, `JpaTransactionRepository`).
-
----
-
-## 🎯 1. Objetivo da Aula
-
-Implementar a persistência real de transações utilizando **Spring Data JPA**, **MySQL** e o suporte nativo do **Spring Boot Docker Compose**, mantendo a entidade JPA (`TransactionEntity`) separada da entidade pura de domínio (`Transaction`).
+- **Escopo**: Definição do MySQL via `compose.yml` e implementação do pacote `infrastructure.persistence` (`TransactionEntity`, `TransactionEntityRepository`, `JpaTransactionRepository`).
 
 ---
 
-## 🛠️ 2. Passo a Passo de Implementação
+## 1. Objetivo
 
-### Passo 2.1 — Adicionar Dependências JPA, MySQL e Docker Compose no `build.gradle`
-No [`build.gradle`](../../build.gradle), adicione:
+Implementar o adaptador de persistência em MySQL utilizando Spring Data JPA e integração automática via `spring-boot-docker-compose`, mantendo o modelo relacional (`TransactionEntity`) desacoplado do modelo de domínio (`Transaction`).
+
+---
+
+## 2. Implementação
+
+### 2.1. Dependências (`build.gradle`)
+Em [`build.gradle`](../../build.gradle):
 
 ```groovy
-    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
-
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    runtimeOnly 'com.mysql:mysql-connector-j'
+developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+runtimeOnly 'com.mysql:mysql-connector-j'
 ```
 
-### Passo 2.2 — Criar o `compose.yml` na Raiz do Projeto
-O arquivo [`compose.yml`](../../compose.yml) define o container MySQL gerenciado automaticamente pelo Spring Boot em tempo de desenvolvimento:
+### 2.2. Serviço MySQL (`compose.yml`)
+Arquivo [`compose.yml`](../../compose.yml):
 
 ```yaml
 services:
@@ -49,18 +47,17 @@ volumes:
   transaction_data:
 ```
 
-### Passo 2.3 — Configurar o Hibernate no `application.properties`
-No [`src/main/resources/application.properties`](../../src/main/resources/application.properties), adicione:
+### 2.3. Propriedades JPA (`application.properties`)
+Em [`src/main/resources/application.properties`](../../src/main/resources/application.properties):
 
 ```properties
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 ```
-*(Não é necessário configurar `spring.datasource.url/username/password` manualmente quando `spring-boot-docker-compose` está ativo, pois o Spring Boot injeta as credenciais do `compose.yml` automaticamente via Service Connection).*
 
-### Passo 2.4 — Implementar a Camada `infrastructure.persistence`
+### 2.4. Adaptador de Persistência (`infrastructure.persistence`)
 
-1. **Entidade JPA [`TransactionEntity.java`](../../src/main/java/dio/budgeting/infrastructure/persistence/entity/TransactionEntity.java)**:
+1. **[`TransactionEntity.java`](../../src/main/java/dio/budgeting/infrastructure/persistence/entity/TransactionEntity.java)**:
    ```java
    package dio.budgeting.infrastructure.persistence.entity;
 
@@ -103,13 +100,12 @@ spring.jpa.show-sql=true
                    new TransactionId(this.id),
                    this.description,
                    this.amount,
-                   this.category
-           );
+                   this.category);
        }
    }
    ```
 
-2. **Repositório Spring Data [`TransactionEntityRepository.java`](../../src/main/java/dio/budgeting/infrastructure/persistence/repository/TransactionEntityRepository.java)**:
+2. **[`TransactionEntityRepository.java`](../../src/main/java/dio/budgeting/infrastructure/persistence/repository/TransactionEntityRepository.java)**:
    ```java
    package dio.budgeting.infrastructure.persistence.repository;
 
@@ -125,7 +121,7 @@ spring.jpa.show-sql=true
    }
    ```
 
-3. **Adaptador [`JpaTransactionRepository.java`](../../src/main/java/dio/budgeting/infrastructure/persistence/repository/JpaTransactionRepository.java)**:
+3. **[`JpaTransactionRepository.java`](../../src/main/java/dio/budgeting/infrastructure/persistence/repository/JpaTransactionRepository.java)**:
    ```java
    package dio.budgeting.infrastructure.persistence.repository;
 
@@ -168,12 +164,3 @@ spring.jpa.show-sql=true
        }
    }
    ```
-
----
-
-## ▶️ 3. Como Executar e Validar
-
-Com o Docker em execução, rode `./gradlew bootRun` e verifique no log do Hibernate a criação automática da tabela:
-```sql
-Hibernate: create table transaction_entity (amount bigint not null, id binary(16) not null, description varchar(255), category enum ('AUTO','GROCERIES','PHARMA'), primary key (id))
-```

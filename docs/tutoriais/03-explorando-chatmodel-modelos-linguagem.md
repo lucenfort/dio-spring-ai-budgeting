@@ -1,20 +1,19 @@
-# Aula 03 — Explorando o ChatModel e Modelos de Linguagem
+# 03 — ChatModel e Opções de Inferência
 
-- **Vídeo correspondente**: `Explorando o ChatModel e Modelos de Linguagem.mp4` (~22m27s)
-- **Etapa do Projeto**: Criação do teste de integração `OpenAiChatModelIT`, configuração de `OpenAiChatOptions` e primeiro teste de comunicação com o modelo `gpt-4o-mini`.
-
----
-
-## 🎯 1. Objetivo da Aula
-
-Entender como funciona a interface `ChatModel` (e sua implementação `OpenAiChatModel`), como customizar opções de chamada (`model`, `temperature`, `responseFormat`) via código ou via `application.properties`, e criar um teste de integração seguro que só executa quando a variável `OPENAI_API_KEY` está presente.
+- **Escopo**: Uso de `OpenAiChatModel`, `OpenAiChatOptions` e implementação do `OpenAiChatModelIT`.
 
 ---
 
-## 🛠️ 2. Passo a Passo de Implementação
+## 1. Objetivo
 
-### Passo 2.1 — Criar o Teste de Integração `OpenAiChatModelIT.java`
-Crie o arquivo [`src/test/java/dio/budgeting/OpenAiChatModelIT.java`](../../src/test/java/dio/budgeting/OpenAiChatModelIT.java):
+Utilizar a interface `ChatModel` (`OpenAiChatModel`) para comunicação direta com o modelo `gpt-4o-mini` e parametrizar opções de inferência programaticamente e via configuração externa.
+
+---
+
+## 2. Implementação
+
+### 2.1. Teste de Integração (`OpenAiChatModelIT.java`)
+Arquivo [`src/test/java/dio/budgeting/OpenAiChatModelIT.java`](../../src/test/java/dio/budgeting/OpenAiChatModelIT.java):
 
 ```java
 package dio.budgeting;
@@ -52,51 +51,25 @@ public class OpenAiChatModelIT {
         var response = chatModel.call("Gere um registro de budgeting, com descrição de gasto, valor em reais e local");
 
         assertThat(response).isNotEmpty();
-        System.out.println(response);
     }
 }
 ```
 
-### Passo 2.2 — Externalizar Opções do ChatModel no `application.properties`
-Em vez de construir o `OpenAiChatOptions` manualmente toda vez, adicione no [`src/main/resources/application.properties`](../../src/main/resources/application.properties):
+### 2.2. Parametrização no `application.properties`
+Em [`src/main/resources/application.properties`](../../src/main/resources/application.properties):
 
 ```properties
 spring.ai.openai.chat.options.model=gpt-4o-mini
 spring.ai.openai.chat.options.response-format.type=TEXT
 ```
 
-### Passo 2.3 — (Exploratório na Aula) Testar via Controller REST
-Durante a aula, o instrutor demonstra um controller simples (`ChatModelController`) para testar no cliente HTTP:
-```java
-@RestController
-@RequestMapping("/api")
-public class ChatModelController {
-    private final OpenAiChatModel openAiChatModel;
-
-    public ChatModelController(OpenAiChatModel openAiChatModel) {
-        this.openAiChatModel = openAiChatModel;
-    }
-
-    @GetMapping("/chat-model")
-    String chat(String prompt) {
-        return this.openAiChatModel.call(prompt);
-    }
-}
-```
-*(Nota: este controller exploratório será substituído na Aula 11 pelo `TransactionController` definitivo).*
-
 ---
 
-## ▶️ 3. Como Executar e Testar
+## 3. Execução
 
-Execute o teste de integração com a chave da OpenAI configurada:
 ```bash
-export OPENAI_API_KEY="sua_chave_aqui"
+export OPENAI_API_KEY="sk-..."
 ./gradlew test --tests "dio.budgeting.OpenAiChatModelIT"
 ```
 
----
-
-## ✨ 4. Como Refinar no Repositório
-
-- O uso da anotação `@EnabledIfEnvironmentVariable(named = "OPENAI_API_KEY", matches = ".+")` é fundamental para que pipelines de CI (como o GitHub Actions) não quebrem quando rodarem sem segredos de API externa.
+> A anotação `@EnabledIfEnvironmentVariable` garante que o teste seja ignorado em pipelines de CI sem credenciais externas.

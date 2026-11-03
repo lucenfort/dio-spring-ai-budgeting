@@ -1,38 +1,39 @@
-# Roadmap de Evolução — Desafio DIO Spring AI (Budgeting API)
+# Roadmap de Evolução — Budgeting API
 
-Este documento reúne sugestões práticas e estruturadas para evoluir o projeto base e destacar sua entrega no desafio da DIO.
+Registro técnico das melhorias implementadas e backlog evolutivo da aplicação.
 
-## 1. Ideias de Evolução por Nível
+## 1. Escopo Evolutivo
 
-### Nível 1 — Melhorias Rápidas e Diretas (Recomendado para começar)
-- [x] **Listar todas as transações / Resumo financeiro (`GetFinancialSummaryUseCase`)**:
-  - Criar um caso de uso anotado com `@Tool` para retornar o total gasto geral ou por categoria.
-  - Expor no `TransactionController` (`GET /transactions/summary`).
-- [x] **Validação de Domínio**:
-  - Validar no construtor de `Transaction` se o valor (`amount`) é maior que zero, se a descrição não está em branco e se a categoria foi informada.
-- [x] **Melhoria do System Prompt (`src/main/resources/prompts/system-message.st`)**:
-  - Ajustar o tom de voz do assistente, incluir suporte à ferramenta de resumo financeiro e orientar respostas naturais para leitura em voz alta.
+### Fase 1 — Funcionalidades e Domínio (Concluído)
+- [x] **Resumo financeiro (`GetFinancialSummaryUseCase`)**:
+  - Caso de uso anotado com `@Tool(name = "get-financial-summary")` para consolidação geral e por categoria.
+  - Exposição via REST (`GET /transactions/summary`).
+- [x] **Validação de invariantes de domínio**:
+  - Validação no construtor de `Transaction` (`amount > 0`, descrição obrigatória e categoria não nula).
+- [x] **Refinamento do System Prompt (`src/main/resources/prompts/system-message.st`)**:
+  - Diretrizes objetivas de categorização, uso da tool de resumo e adequação textual para TTS.
+- [x] **Suíte de testes unitários**:
+  - Cobertura de domínio, casos de uso e controller (`TransactionTest`, `FinancialUseCasesTest`, `TransactionControllerTest`) desacoplada da API da OpenAI.
 
-### Nível 2 — Evoluções Intermediárias
-- [ ] **Filtro por Período de Datas**:
-  - Consultar transações entre `startDate` e `endDate` tanto via endpoint REST quanto via Tool Calling da IA.
-- [ ] **Exclusão ou Estorno de Transação (`DeleteTransactionUseCase`)**:
-  - Permitir comandos de voz como *"Apague o último gasto que registrei"* ou exclusão por ID via REST (`DELETE /transactions/{id}`).
-- [x] **Testes Unitários dos Casos de Uso**:
-  - Criar testes unitários rápidos (`TransactionTest` e `FinancialUseCasesTest`) que rodem sem depender de chave da OpenAI.
+### Fase 2 — Operações Adicionais (Backlog)
+- [ ] **Filtro por intervalo temporal**:
+  - Inclusão de timestamp em `Transaction` e consulta entre `startDate` e `endDate` via REST e Tool Calling.
+- [ ] **Exclusão de transações (`DeleteTransactionUseCase`)**:
+  - Remoção por ID via `DELETE /transactions/{id}` e integração via `@Tool`.
 
-### Nível 3 — Evoluções Avançadas
-- [ ] **Limite de Orçamento por Categoria (Budget Alert)**:
-  - Avisar na resposta de voz quando o gasto acumulado em uma categoria ultrapassar uma meta definida.
-- [ ] **Auditoria de Comandos de Voz**:
-  - Salvar o histórico do texto transcrito e da resposta gerada pela IA para fins de auditoria.
+### Fase 3 — Produção e Governança (Backlog)
+- [ ] **Alertas de limite orçamentário**:
+  - Definição de tetos por categoria com notificação na resposta gerada pelo assistente.
+- [ ] **Auditoria de interações**:
+  - Persistência do texto transcrito, tool invocada e resposta sintetizada para rastreabilidade.
+- [ ] **Autenticação e isolamento de dados**:
+  - Proteção dos endpoints via Spring Security / JWT e vínculo de transações por usuário.
 
 ---
 
-## 2. Checklist de Entrega para a DIO
+## 2. Checklist de Validação
 
-- [ ] Projeto executando localmente (`./gradlew bootRun`) com banco MySQL via Docker Compose (`compose.yml`).
-- [ ] Pelo menos **uma melhoria funcional** implementada e testada.
-- [ ] Seção **"Qual melhoria foi implementada"** preenchida no `README.md` principal.
-- [ ] Exemplos de requisições (`curl` / Postman / Insomnia) documentados no `README.md`.
-- [ ] Repositório publicado no GitHub e link enviado na plataforma da DIO.
+- [x] Execução local (`./gradlew bootRun`) integrada ao MySQL via `compose.yml`.
+- [x] Melhorias funcionais e testes unitários implementados.
+- [x] Especificação técnica e exemplos `curl` documentados no `README.md`.
+- [ ] Repositório publicado no GitHub e submetido na plataforma da DIO.

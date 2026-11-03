@@ -36,9 +36,26 @@ out/
 ### VS Code ###
 .vscode/
 
-### Environment & Local Artifacts ###
+### Environment, Credentials & Local Artifacts ###
 .env
 .env.*
+*.env
 !.env.example
+application-local.*
+application-dev.*
+application-prod.*
+application-secret.*
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*credentials*
+*secret*
 *.mp3
+*.wav
+*.ogg
+*.log
+hs_err_pid*
+replay_pid*
 .DS_Store

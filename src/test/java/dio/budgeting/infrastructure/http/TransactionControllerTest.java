@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class TransactionControllerTest {
@@ -105,6 +106,45 @@ class TransactionControllerTest {
         assertThat(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
                 .contains("audio.mp3");
         assertThat(response.getBody()).isNotNull();
+    }
+
+    @Test
+    void shouldRejectInvalidOrOversizedAudioWithoutCallingOpenAi() {
+        var emptyAudio = new MockMultipartFile("file", "recording.m4a", "audio/m4a", new byte[0]);
+        assertThatThrownBy(() -> controller.transcribe(emptyAudio))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("vazio");
+
+        var oversizedAudio = new MockMultipartFile(
+                "file", "recording.m4a", "audio/m4a", new byte[(int) TransactionController.MAX_AUDIO_SIZE_BYTES + 1]);
+        assertThatThrownBy(() -> controller.transcribe(oversizedAudio))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1 MB");
+
+        var invalidFormat = new MockMultipartFile("file", "malicious.exe", "application/octet-stream", new byte[]{1, 2});
+        assertThatThrownBy(() -> controller.transcribe(invalidFormat))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Formato de arquivo inválido");
+
+        verifyNoInteractions(transcriptionModel, chatClient, textToSpeechModel);
+    }
+
+    @Test
+    void shouldRejectBlankOrOversizedTranscriptionBeforeCallingChatModelAndTts() {
+        var mockAudio = new MockMultipartFile("file", "recording-1.m4a", "audio/m4a", new byte[]{1, 2, 3});
+
+        when(transcriptionModel.transcribe(any())).thenReturn("   ");
+        assertThatThrownBy(() -> controller.transcribe(mockAudio))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("identificar fala");
+
+        String longText = "a".repeat(TransactionController.MAX_TRANSCRIPTION_LENGTH + 1);
+        when(transcriptionModel.transcribe(any())).thenReturn(longText);
+        assertThatThrownBy(() -> controller.transcribe(mockAudio))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("limite máximo de caracteres");
+
+        verifyNoInteractions(chatClient, textToSpeechModel);
     }
 
     private static class InMemoryRepo implements TransactionRepository {

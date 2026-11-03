@@ -1,166 +1,146 @@
-# 🚀 Instruções Finais — Validação Local, Publicação no GitHub e Entrega na DIO
+# Guia de Validação Local, Publicação e Entrega
 
-Este guia reúne o passo a passo exato do que **você deve fazer manualmente** para realizar seu teste final de validação, publicar o projeto no seu GitHub e entregar o desafio na plataforma da DIO.
-
----
-
-## 📌 O Que Já Está Pronto no Seu Ambiente
-
-- **Projeto completo implementado** em `/home/lucenfort/Workspace/dio-spring-ai-budgeting`.
-- **JDK 25 (`25.0.4.1`)** instalado e configurado no seu container Distrobox `fedora-dev`.
-- **Gradle 9.4.1** baixado e configurado no `gradlew` (você pode rodar `./gradlew` diretamente do seu terminal normal que ele usa o JDK 25 do `fedora-dev` automaticamente) e `gradle.properties` ajustado para IPv4.
-- **Wrapper `docker` -> `podman`** configurado em `~/.local/bin/docker`.
-- **Suíte de testes unitários (8 testes)** criada e validada (`TransactionTest`, `FinancialUseCasesTest` e `TransactionControllerTest`).
-- **Commit Git inicial** já realizado na branch `main`.
+Procedimento técnico para configuração da credencial da OpenAI, validação da aplicação, publicação no GitHub e submissão do desafio.
 
 ---
 
-## 🧪 Etapa 1 — Validação Rápida (Sem Chave da OpenAI e Sem Banco)
+## 1. Configuração da Chave de API da OpenAI (`OPENAI_API_KEY`)
 
-Este teste compila todo o projeto com Java 25 e executa os **8 testes unitários** (regras de domínio, casos de uso, resumo financeiro e endpoints do `TransactionController` com mocks de áudio/IA).
+Para executar os testes de integração (`*IT`) e o endpoint multimodal `POST /transactions/ai` aplicando o princípio do menor privilégio, configure uma **Project API Key** no painel da OpenAI (`https://platform.openai.com/api-keys`) com as especificações abaixo.
 
-Abra o terminal e execute:
+### 1.1. Tipo e Modo de Permissão
+- **Escopo**: Project Key vinculada a um projeto dedicado (ex.: `dio-budgeting-api`).
+- **Owned by**: `You` (User key) ou `Service account`.
+- **Permissions (Modo)**: Selecione **`Restricted`** (evite o modo `All` para chaves de desenvolvimento/teste).
+
+### 1.2. Permissões na Interface da OpenAI (Modo `Restricted`)
+Com a aba **`Restricted`** selecionada, mantenha todas as opções desmarcadas (`None`) e habilite apenas:
+
+| Item na Lista da OpenAI | Permissão a Selecionar | Finalidade no Projeto |
+| :--- | :---: | :--- |
+| **Model capabilities** | **`Write`** | Habilita `/v1/chat/completions` (`gpt-4o-mini` + Tool Calling), `/v1/audio/transcriptions` (`whisper-1`) e `/v1/audio/speech` (`gpt-4o-mini-tts`) |
+| **List models** *(opcional)* | **`Read`** | Apenas se desejar consultar `/v1/models` para diagnóstico de conectividade via `curl` |
+| **Demais itens** (*Agents, Traces, Vaults, Voices, Threads, Evals, Fine-tuning, Files, Videos, Vector Stores, Prompts, Batch, Tunnels, Datasets, Safety, Project safety alerts*) | **`None`** (Desmarcado) | Não utilizados pela aplicação (`Voices` refere-se a vozes customizadas; a voz nativa `nova` opera via `Model capabilities`) |
+
+### 1.3. Restrição de Modelos e Limite de Gastos (No Projeto da OpenAI)
+Em **Settings -> Project -> Limits** no console da OpenAI:
+1. **Model usage (Allowlist)**: Caso restrinja os modelos permitidos no projeto, habilite apenas:
+   - `gpt-4o-mini`
+   - `whisper-1`
+   - `gpt-4o-mini-tts`
+2. **Usage limits (Budget)**: Configure um limite mensal rígido (*Hard limit*, ex.: `$2.00` a `$5.00`). O custo de execução completa da suíte de testes e validações manuais deste projeto é inferior a `$0.05`.
+3. **Créditos Pré-pagos (Billing)**: A API da OpenAI exige saldo ativo em **Settings -> Billing** (o plano ChatGPT Plus não inclui cota da API; sem saldo, a API retorna `429 insufficient_quota`).
+
+### 1.4. Injeção da Chave no Ambiente Local
+A chave deve ficar armazenada exclusivamente no arquivo `.env` na raiz do projeto (ignorado pelo `.gitignore` e com permissão restrita `600`). Nunca edite o arquivo `.env.example` com uma chave real, pois ele é rastreado pelo Git.
+
+```bash
+cp .env.example .env
+chmod 600 .env
+# Edite o arquivo .env com sua chave: OPENAI_API_KEY=sk-proj-...
+```
+
+- O `application.properties` importa automaticamente o arquivo `.env` (`spring.config.import=optional:file:.env[.properties]`) ao executar `./gradlew bootRun`.
+- Por economia de tokens, `./gradlew test` ignora o `.env` por padrão (executando apenas testes unitários a custo zero). Para executar os testes de integração com a OpenAI (`*IT`), passe a flag `-PwithOpenAi`:
+  ```bash
+  ./gradlew test -PwithOpenAi
+  ```
+
+---
+
+## 2. Validação Automatizada (Testes Unitários)
+
+Compila o projeto com JDK 25 e executa a suíte de testes unitários (regras de domínio, casos de uso e endpoints REST/IA com mocks), sem necessidade de banco de dados ativo ou `OPENAI_API_KEY`:
 
 ```bash
 cd /home/lucenfort/Workspace/dio-spring-ai-budgeting
 ./gradlew test --rerun-tasks
 ```
 
-**Resultado esperado:**
-- `BUILD SUCCESSFUL` em ~3 segundos.
-- Os testes de integração que dependem da OpenAI (`*IT`) aparecerão como `SKIPPED` (pois a variável `OPENAI_API_KEY` ainda não foi definida), e todos os testes de domínio, aplicação e controller passarão (`PASSED`).
-- Você também pode abrir o relatório visual no navegador:
-  ```bash
-  xdg-open build/reports/tests/test/index.html
-  ```
+- Os testes de integração (`*IT`) são ignorados automaticamente quando `OPENAI_API_KEY` não está definida no ambiente.
+- Relatório HTML gerado em `build/reports/tests/test/index.html`.
 
 ---
 
-## 🐳 Etapa 2 — Validação Completa da API Rodando (MySQL + Endpoints REST + IA)
+## 3. Validação Integrada (MySQL + API REST + OpenAI)
 
-Se você quiser subir a aplicação real com o banco de dados MySQL e testar as requisições HTTP:
-
-### 2.1. Subir o Banco de Dados MySQL (via Podman Compose)
-No terminal, dentro da pasta do projeto:
-
+### 3.1. Iniciar o Banco de Dados
 ```bash
 cd /home/lucenfort/Workspace/dio-spring-ai-budgeting
 podman compose up -d
 ```
 
-Verifique se o container do MySQL está rodando na porta `3307`:
+### 3.2. Iniciar a Aplicação
 ```bash
-podman ps
-```
-
-### 2.2. Iniciar a Aplicação Spring Boot
-Se você **tiver uma chave da OpenAI** (`sk-...`), exporte-a antes de iniciar:
-```bash
-export OPENAI_API_KEY="sk-sua-chave-da-openai-aqui"
+export OPENAI_API_KEY="sk-proj-..."
 ./gradlew bootRun
 ```
-*(Observação: Caso você não tenha uma chave real da OpenAI no momento, mas queira testar apenas os endpoints REST com o banco MySQL, basta exportar um valor fictício como `export OPENAI_API_KEY="sk-teste-local"` e rodar `./gradlew bootRun`).*
+*(Para testar exclusivamente os endpoints REST sem consumir a API da OpenAI, defina um valor placeholder como `export OPENAI_API_KEY="sk-local-test"`).*
 
-### 2.3. Testar os Endpoints REST (em outro terminal)
+### 3.3. Testar Endpoints REST
 
-1. **Criar transações financeiras (`POST /transactions`)**:
+1. **Criação de transações (`POST /transactions`)**:
    ```bash
    curl -i -X POST http://localhost:8080/transactions \
      -H "Content-Type: application/json" \
-     -d '{"description": "Compras do mês no supermercado", "category": "GROCERIES", "amount": 15000}'
+     -d '{"description": "Compras no supermercado", "category": "GROCERIES", "amount": 15000}'
 
    curl -i -X POST http://localhost:8080/transactions \
      -H "Content-Type: application/json" \
-     -d '{"description": "Medicamentos na farmácia", "category": "PHARMA", "amount": 8000}'
+     -d '{"description": "Medicamentos", "category": "PHARMA", "amount": 8000}'
    ```
 
-2. **Testar a validação de domínio implementada (`400 Bad Request`)**:
+2. **Validação de domínio (`400 Bad Request`)**:
    ```bash
    curl -i -X POST http://localhost:8080/transactions \
      -H "Content-Type: application/json" \
      -d '{"description": "", "category": "AUTO", "amount": 0}'
    ```
 
-3. **Listar transações por categoria (`GET /transactions/{category}`)**:
+3. **Consulta por categoria (`GET /transactions/{category}`)**:
    ```bash
    curl -s http://localhost:8080/transactions/GROCERIES
    ```
 
-4. **Consultar o Resumo Financeiro Consolidado — Melhoria do Desafio (`GET /transactions/summary`)**:
+4. **Resumo financeiro consolidado (`GET /transactions/summary`)**:
    ```bash
    curl -s http://localhost:8080/transactions/summary
    ```
-   Retorno esperado:
-   ```json
-   {
-     "totalTransactions": 2,
-     "totalAmount": 23000.0,
-     "totalByCategory": {
-       "GROCERIES": 15000.0,
-       "PHARMA": 8000.0
-     }
-   }
-   ```
 
-### 2.4. Testar o Fluxo de Voz com IA (`POST /transactions/ai`) *(Requer `OPENAI_API_KEY` válida)*
-Com uma chave válida da OpenAI configurada:
-
+### 3.4. Testar Pipeline de Voz (`POST /transactions/ai`)
+Requer `OPENAI_API_KEY` válida:
 ```bash
 curl -X POST http://localhost:8080/transactions/ai \
   -F "file=@src/test/resources/audio/recording-1.m4a" \
   --output resposta-assistente.mp3
 ```
 
-Depois, ouça a confirmação em voz gerada pela IA:
+Para encerrar o ambiente após os testes:
 ```bash
-vlc resposta-assistente.mp3
-```
-
-Para encerrar a aplicação e o container do banco ao terminar os testes:
-```bash
-# No terminal do bootRun, pressione Ctrl+C e depois:
 podman compose down
 ```
 
 ---
 
-## 🌐 Etapa 3 — Publicar o Projeto no Seu GitHub
+## 4. Publicação no GitHub
 
-O seu GitHub CLI (`gh`) já está autenticado com a sua conta **`lucenfort`** e o commit já está pronto na branch `main`.
-
-Execute os comandos abaixo para criar o repositório público no seu GitHub e fazer o push de todo o código:
+Com o GitHub CLI (`gh`) autenticado:
 
 ```bash
 cd /home/lucenfort/Workspace/dio-spring-ai-budgeting
 
-# Cria o repositório público no seu GitHub, configura o remote 'origin' e faz o push
 gh repo create dio-spring-ai-budgeting \
   --public \
-  --description "API Inteligente de Controle de Orçamento (Budgeting) com Spring Boot 4, Spring AI (ChatClient, Tool Calling, Whisper STT e TTS) e Java 25 — Desafio DIO" \
+  --description "Budgeting REST & Multimodal Voice API with Spring Boot 4, Spring AI and Java 25" \
   --source=. \
   --remote=origin \
   --push
 ```
 
-### Validar no GitHub após o Push:
-1. Acesse: `https://github.com/lucenfort/dio-spring-ai-budgeting`
-2. Verifique se o `README.md` com o diagrama Mermaid está renderizando na página inicial.
-3. Clique na aba **Actions** do repositório para ver o workflow **Java CI with Gradle** rodando e ficando verde ✅.
-
 ---
 
-## 🏆 Etapa 4 — Entregar o Desafio na Plataforma da DIO
+## 5. Submissão na Plataforma da DIO
 
-1. Acesse a página do **Desafio de Projeto (Desenvolvendo sua API Inteligente com Spring AI)** na plataforma da DIO.
-2. Clique em **Entregar Projeto**.
-3. No campo **URL do Repositório no GitHub**, cole:
-   ```text
-   https://github.com/lucenfort/dio-spring-ai-budgeting
-   ```
-4. No campo de **Descrição / Comentários da Entrega**, você pode usar o resumo abaixo:
-   > Implementação e evolução da API Inteligente de Budgeting com Spring Boot 4, Java 25 e Spring AI (OpenAI ChatClient, Tool Calling, Whisper Transcription e Text-to-Speech).
-   > Melhorias adicionadas ao projeto base:
-   > 1. Nova Tool (@Tool "get-financial-summary") e caso de uso GetFinancialSummaryUseCase + endpoint REST GET /transactions/summary para consolidação de despesas por categoria e total geral.
-   > 2. Validações de regras de negócio na entidade de domínio Transaction e tratamento HTTP 400 Bad Request no TransactionController.
-   > 3. Evolução do System Prompt em português brasileiro e suíte de testes unitários automatizados (TransactionTest, FinancialUseCasesTest e TransactionControllerTest) integrada ao GitHub Actions CI.
-5. Confirme o envio! 🎉
+- **URL do Repositório**: `https://github.com/lucenfort/dio-spring-ai-budgeting`
+- **Resumo Técnico da Entrega**:
+  > API de controle de orçamento com Spring Boot 4, Java 25 e Spring AI (ChatClient, Tool Calling, Whisper STT e TTS). Evoluções implementadas: (1) Caso de uso `GetFinancialSummaryUseCase` exposto via `@Tool("get-financial-summary")` e endpoint `GET /transactions/summary`; (2) Validações de domínio na entidade `Transaction` com tratamento `400 Bad Request`; (3) Refinamento do System Prompt em português; (4) Testes unitários automatizados (`TransactionTest`, `FinancialUseCasesTest`, `TransactionControllerTest`) integrados ao GitHub Actions CI.

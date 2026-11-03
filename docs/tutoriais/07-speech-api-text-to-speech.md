@@ -1,20 +1,19 @@
-# Aula 07 — Speech API: Sintetizando Voz com Text-to-Speech
+# 07 — Speech API: Síntese de Voz (Text-to-Speech)
 
-- **Vídeo correspondente**: `Speech API Sintetizando Voz com Text to Speech.mp4` (~16m45s)
-- **Etapa do Projeto**: Configuração do `gpt-4o-mini-tts` (voz `nova`, velocidade `1.2`, formato `mp3`) no `application.properties` e criação do `OpenAiSpeechModelIT`.
-
----
-
-## 🎯 1. Objetivo da Aula
-
-Utilizar a **Audio Speech API (Text-to-Speech / TTS)** do Spring AI (`OpenAiAudioSpeechModel` / `TextToSpeechModel`) para transformar textos de resposta gerados pela aplicação em arquivos de áudio MP3 naturais em português.
+- **Escopo**: Configuração do modelo `gpt-4o-mini-tts` e implementação do `OpenAiSpeechModelIT`.
 
 ---
 
-## 🛠️ 2. Passo a Passo de Implementação
+## 1. Objetivo
 
-### Passo 2.1 — Configurar o Modelo de Síntese de Voz no `application.properties`
-Adicione no [`src/main/resources/application.properties`](../../src/main/resources/application.properties):
+Utilizar a interface `TextToSpeechModel` (`OpenAiAudioSpeechModel`) para converter respostas textuais em fluxos de áudio MP3.
+
+---
+
+## 2. Implementação
+
+### 2.1. Configuração de Síntese (`application.properties`)
+Em [`src/main/resources/application.properties`](../../src/main/resources/application.properties):
 
 ```properties
 spring.ai.model.audio.speech=openai
@@ -24,8 +23,8 @@ spring.ai.openai.audio.speech.options.speed=1.2
 spring.ai.openai.audio.speech.options.response-format=mp3
 ```
 
-### Passo 2.2 — Criar o Teste de Integração `OpenAiSpeechModelIT.java`
-Crie o arquivo [`src/test/java/dio/budgeting/OpenAiSpeechModelIT.java`](../../src/test/java/dio/budgeting/OpenAiSpeechModelIT.java):
+### 2.2. Teste de Integração (`OpenAiSpeechModelIT.java`)
+Arquivo [`src/test/java/dio/budgeting/OpenAiSpeechModelIT.java`](../../src/test/java/dio/budgeting/OpenAiSpeechModelIT.java):
 
 ```java
 package dio.budgeting;
@@ -55,13 +54,12 @@ public class OpenAiSpeechModelIT {
 
         var tempFile = Files.createTempFile("AUDIO_", ".mp3");
         Files.write(tempFile, response);
-        System.out.println(tempFile.toAbsolutePath());
     }
 }
 ```
 
-### Passo 2.3 — Como Retornar Áudio MP3 via HTTP no Spring Web
-Para devolver o array `byte[]` produzido pelo `TextToSpeechModel` como download de arquivo MP3 em um Controller REST, encapsule-o em um `ByteArrayResource` com o cabeçalho `Content-Disposition`:
+### 2.3. Retorno Binário via HTTP
+Para retornar o array `byte[]` em um endpoint Spring MVC:
 
 ```java
 byte[] audio = textToSpeechModel.call(texto);
@@ -69,18 +67,14 @@ var resource = new ByteArrayResource(audio);
 
 return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION,
-                ContentDisposition.attachment()
-                        .filename("audio.mp3")
-                        .build()
-                        .toString())
+                ContentDisposition.attachment().filename("audio.mp3").build().toString())
         .body(resource);
 ```
 
 ---
 
-## ▶️ 3. Como Executar e Testar
+## 3. Execução
 
 ```bash
 ./gradlew test --tests "dio.budgeting.OpenAiSpeechModelIT" --info
 ```
-O caminho absoluto do arquivo `.mp3` gerado será exibido no console para que você possa ouvi-lo no reprodutor de mídia.

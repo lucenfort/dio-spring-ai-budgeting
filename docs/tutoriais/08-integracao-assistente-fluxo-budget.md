@@ -1,21 +1,20 @@
-# Aula 08 — Integração do Assistente: Orquestrando o Fluxo de Budget
+# 08 — Camadas de Domínio e Aplicação
 
-- **Vídeo correspondente**: `Integração do Assistente Orquestrando o Fluxo de Budget.mp4` (~17m23s)
-- **Etapa do Projeto**: Implementação das camadas `domain` (`Category`, `TransactionId`, `Transaction`, `TransactionRepository`) e `application` (`PersistTransactionInput`, `TransactionOutput`, `PersistTransactionUseCase`).
-
----
-
-## 🎯 1. Objetivo da Aula
-
-Construir o núcleo de negócio da aplicação de controle de orçamento seguindo **Domain-Driven Design (DDD)** e **Clean Architecture**, mantendo o domínio isolado de frameworks de persistência e preparando os casos de uso para serem consumidos tanto por endpoints REST quanto pelo Spring AI.
+- **Escopo**: Implementação dos pacotes `domain` (`Category`, `TransactionId`, `Transaction`, `TransactionRepository`) e `application` (`PersistTransactionInput`, `TransactionOutput`, `PersistTransactionUseCase`).
 
 ---
 
-## 🛠️ 2. Passo a Passo de Implementação
+## 1. Objetivo
 
-### Passo 2.1 — Camada `domain`
+Modelar o núcleo de negócio seguindo Domain-Driven Design (DDD) e Clean Architecture, isolando regras e invariantes na entidade `Transaction` e expondo casos de uso reutilizáveis por REST e Tool Calling.
 
-1. **Enum [`Category.java`](../../src/main/java/dio/budgeting/domain/Category.java)**:
+---
+
+## 2. Implementação
+
+### 2.1. Camada `domain`
+
+1. **[`Category.java`](../../src/main/java/dio/budgeting/domain/Category.java)**:
    ```java
    package dio.budgeting.domain;
 
@@ -26,7 +25,7 @@ Construir o núcleo de negócio da aplicação de controle de orçamento seguind
    }
    ```
 
-2. **Identificador Forte [`TransactionId.java`](../../src/main/java/dio/budgeting/domain/TransactionId.java)**:
+2. **[`TransactionId.java`](../../src/main/java/dio/budgeting/domain/TransactionId.java)**:
    ```java
    package dio.budgeting.domain;
 
@@ -39,7 +38,7 @@ Construir o núcleo de negócio da aplicação de controle de orçamento seguind
    }
    ```
 
-3. **Entidade de Domínio [`Transaction.java`](../../src/main/java/dio/budgeting/domain/Transaction.java)** (já refinada com validações de domínio):
+3. **[`Transaction.java`](../../src/main/java/dio/budgeting/domain/Transaction.java)**:
    ```java
    package dio.budgeting.domain;
 
@@ -72,7 +71,7 @@ Construir o núcleo de negócio da aplicação de controle de orçamento seguind
    }
    ```
 
-4. **Contrato [`TransactionRepository.java`](../../src/main/java/dio/budgeting/domain/TransactionRepository.java)**:
+4. **[`TransactionRepository.java`](../../src/main/java/dio/budgeting/domain/TransactionRepository.java)**:
    ```java
    package dio.budgeting.domain;
 
@@ -80,16 +79,14 @@ Construir o núcleo de negócio da aplicação de controle de orçamento seguind
 
    public interface TransactionRepository {
        Transaction save(Transaction transaction);
-
        List<Transaction> findAllByCategory(Category category);
-
        List<Transaction> findAll();
    }
    ```
 
-### Passo 2.2 — Camada `application`
+### 2.2. Camada `application`
 
-1. **DTO de Entrada [`PersistTransactionInput.java`](../../src/main/java/dio/budgeting/application/input/PersistTransactionInput.java)**:
+1. **[`PersistTransactionInput.java`](../../src/main/java/dio/budgeting/application/input/PersistTransactionInput.java)**:
    ```java
    package dio.budgeting.application.input;
 
@@ -103,12 +100,11 @@ Construir o núcleo de negócio da aplicação de controle de orçamento seguind
    }
    ```
 
-2. **DTO de Saída [`TransactionOutput.java`](../../src/main/java/dio/budgeting/application/output/TransactionOutput.java)**:
+2. **[`TransactionOutput.java`](../../src/main/java/dio/budgeting/application/output/TransactionOutput.java)**:
    ```java
    package dio.budgeting.application.output;
 
    import dio.budgeting.domain.Transaction;
-
    import java.math.BigDecimal;
    import java.math.RoundingMode;
 
@@ -123,7 +119,7 @@ Construir o núcleo de negócio da aplicação de controle de orçamento seguind
    }
    ```
 
-3. **Caso de Uso [`PersistTransactionUseCase.java`](../../src/main/java/dio/budgeting/application/PersistTransactionUseCase.java)**:
+3. **[`PersistTransactionUseCase.java`](../../src/main/java/dio/budgeting/application/PersistTransactionUseCase.java)**:
    ```java
    package dio.budgeting.application;
 
@@ -146,7 +142,6 @@ Construir o núcleo de negócio da aplicação de controle de orçamento seguind
        public TransactionOutput execute(PersistTransactionInput input) {
            var transaction = transactionRepository.save(
                    new Transaction(input.description(), input.amount(), input.category()));
-
            return TransactionOutput.from(transaction);
        }
    }
@@ -154,9 +149,8 @@ Construir o núcleo de negócio da aplicação de controle de orçamento seguind
 
 ---
 
-## ▶️ 3. Como Executar e Validar
+## 3. Validação
 
-Você pode validar imediatamente a camada de domínio e de aplicação executando os testes unitários:
 ```bash
 ./gradlew test --tests "dio.budgeting.domain.TransactionTest" --tests "dio.budgeting.application.FinancialUseCasesTest"
 ```

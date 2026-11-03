@@ -1,52 +1,39 @@
-# Aula 01 — Introdução: Desenvolvendo sua API Inteligente
+# 01 — Arquitetura e Visão Geral da API
 
-- **Vídeo correspondente**: `Introdução ao desenvolvendo sua API Inteligente.mp4` (~9m42s)
-- **Etapa do Projeto**: Alinhamento conceitual, problema de negócio e arquitetura alvo.
-
----
-
-## 🎯 1. Objetivo da Aula
-
-Compreender a mudança de paradigma entre **APIs tradicionais** (que exigem payloads JSON estritamente formatados) e **APIs Inteligentes com Spring AI**, capazes de receber entradas naturais (como áudio de voz), extrair intenções/entidades com LLMs e acionar regras de negócio reais mantendo uma arquitetura limpa.
+- **Escopo**: Definição do problema, fluxo multimodal e arquitetura em camadas.
 
 ---
 
-## 🧠 2. Principais Conceitos Abordados no Vídeo
+## 1. Objetivo
 
-### A Evolução das Interfaces
-| O Padrão Atual (APIs Tradicionais) | A Nova Era (APIs Inteligentes com Spring AI) |
-| :--- | :--- |
-| Receptores de JSON estáticos | Ouvintes ativos de áudio e linguagem natural |
-| Regras de validação rígidas na entrada | Compreensão de contexto fluida via Spring AI |
-| Dependência de input perfeitamente estruturado | Extração automática de entidades e categorização |
-
-### O Caso de Uso: Assistente de Budgeting
-O objetivo do projeto final é eliminar a fricção do registro manual de despesas:
-1. **A Entrada (Input sem fricção)**: O usuário envia um áudio dizendo, por exemplo: *"Gastei 80 reais na farmácia rapidinho em três itens"*.
-2. **A Interpretação (Extração de Inteligência)**:
-   - O áudio é convertido em texto (**Speech-to-Text / Transcription API**);
-   - O modelo de linguagem analisa a frase e extrai **Descrição**, **Valor** e **Categoria** (`GROCERIES`, `PHARMA`, `AUTO`);
-3. **Execução de Função Real (**Tool Calling**)**:
-   - A IA invoca o caso de uso Java (`PersistTransactionUseCase` ou `ListTransactionsByCategoryUseCase`) para persistir ou consultar no banco MySQL;
-4. **Resposta Falada (**Text-to-Speech / Speech API**)**:
-   - A confirmação gerada pela IA é sintetizada em um arquivo `audio.mp3` devolvido ao cliente.
+Estruturar uma API de controle financeiro capaz de processar tanto requisições REST convencionais (JSON) quanto comandos de voz em linguagem natural via Spring AI, preservando o isolamento das regras de negócio.
 
 ---
 
-## 🛠️ 3. Passo a Passo Prático no Repositório
+## 2. Comparativo Arquitetural
 
-Nesta primeira etapa, garanta que a estrutura de pacotes do seu projeto reflita a separação em camadas (**DDD / Clean Architecture**) que será mantida até o fim do curso:
+| Característica | API REST Tradicional | API Multimodal com Spring AI |
+| :--- | :--- | :--- |
+| Formato de entrada | Payload JSON estritamente tipado | Áudio (`multipart/form-data`) e linguagem natural |
+| Tratamento de intenção | Definido estaticamente pela rota HTTP | Inferido pelo LLM e roteado via Tool Calling (`@Tool`) |
+|Extração de parâmetros | Deserialização direta via Jackson | Extração semântica de descrição, valor e categoria |
+
+### Pipeline do Assistente de Orçamento
+1. **Entrada**: Upload de arquivo de áudio contendo comando financeiro.
+2. **Speech-to-Text (`TranscriptionModel`)**: Transcrição do áudio para texto em português.
+3. **LLM + Tool Calling (`ChatClient`)**: Extração de parâmetros e invocação do caso de uso (`PersistTransactionUseCase`, `ListTransactionsByCategoryUseCase` ou `GetFinancialSummaryUseCase`).
+4. **Persistência (`TransactionRepository`)**: Execução da operação no MySQL via Spring Data JPA.
+5. **Text-to-Speech (`TextToSpeechModel`)**: Síntese da resposta textual em formato `audio/mp3`.
+
+---
+
+## 3. Organização de Pacotes
 
 ```text
 src/main/java/dio/budgeting/
-├── domain/           # Entidades puras de negócio, Enums e interfaces de repositório
-├── application/      # Casos de uso da aplicação (que também serão expostos como @Tool para a IA)
-└── infrastructure/   # Adaptadores HTTP (Controllers REST) e Persistência (Spring Data JPA / MySQL)
+├── domain/           # Entidades de negócio, objetos de valor, enums e contratos de repositório
+├── application/      # Casos de uso da aplicação expostos tanto via REST quanto via @Tool
+└── infrastructure/   # Adaptadores HTTP (Controllers) e persistência (Spring Data JPA)
 ```
 
----
-
-## ✅ 4. Checklist e Refinamento para o GitHub
-
-- [x] Documentar no `README.md` o fluxo completo do **Assistente de Budgeting** (Áudio -> Transcrição -> LLM + Tool Calling -> Banco de Dados -> Áudio MP3).
-- [x] Manter a regra de ouro destacada na aula: **a IA nunca acessa o banco diretamente**; ela aciona casos de uso bem definidos na camada `application`.
+> **Diretriz arquitetural**: O modelo de linguagem nunca acessa a camada de persistência diretamente; toda interação ocorre exclusivamente por meio dos casos de uso da camada `application`.

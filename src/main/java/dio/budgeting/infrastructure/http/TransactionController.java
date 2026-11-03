@@ -20,11 +20,20 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/transactions")
 public class TransactionController {
+    static final long MAX_AUDIO_SIZE_BYTES = 1_048_576L; // 1 MB
+    static final int MAX_TRANSCRIPTION_LENGTH = 500;
+    static final int MAX_TTS_LENGTH = 400;
+    private static final Set<String> SUPPORTED_AUDIO_EXTENSIONS = Set.of(
+            ".m4a", ".mp3", ".wav", ".ogg", ".webm", ".mp4", ".mpeg", ".mpga", ".flac"
+    );
+
     private final PersistTransactionUseCase persistTransactionUseCase;
     private final ListTransactionsByCategoryUseCase listTransactionsByCategoryUseCase;
     private final GetFinancialSummaryUseCase getFinancialSummaryUseCase;
@@ -76,10 +85,20 @@ public class TransactionController {
 
     @PostMapping(value = "/ai", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "audio/mp3")
     ResponseEntity<Resource> transcribe(@RequestParam("file") MultipartFile file) {
-        var userMessage = transcriptionModel.transcribe(file.getResource());
-        var result = chatClient.prompt().user(userMessage).call().content();
+        validateAudioFile(file);
 
-        byte[] audio = textToSpeechModel.call(result);
+        var userMessage = transcriptionModel.transcribe(file.getResource());
+        if (userMessage == null || userMessage.isBlank()) {
+            throw new IllegalArgumentException("Não foi possível identificar fala no áudio enviado.");
+        }
+        if (userMessage.length() > MAX_TRANSCRIPTION_LENGTH) {
+            throw new IllegalArgumentException("O comando de voz excede o limite máximo de caracteres permitido.");
+        }
+
+        var result = chatClient.prompt().user(userMessage.trim()).call().content();
+        var safeTtsText = sanitizeForSpeech(result);
+
+        byte[] audio = textToSpeechModel.call(safeTtsText);
         var resource = new ByteArrayResource(audio);
 
         return ResponseEntity.ok()
@@ -89,5 +108,41 @@ public class TransactionController {
                                 .build()
                                 .toString())
                 .body(resource);
+    }
+
+    private void validateAudioFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("O arquivo de áudio é obrigatório e não pode estar vazio.");
+        }
+        if (file.getSize() > MAX_AUDIO_SIZE_BYTES) {
+            throw new IllegalArgumentException("O arquivo de áudio excede o tamanho máximo permitido de 1 MB.");
+        }
+        if (!isSupportedAudioFormat(file)) {
+            throw new IllegalArgumentException("Formato de arquivo inválido. Envie um arquivo de áudio suportado.");
+        }
+    }
+
+    private boolean isSupportedAudioFormat(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType != null && contentType.toLowerCase(Locale.ROOT).startsWith("audio/")) {
+            return true;
+        }
+        String filename = file.getOriginalFilename();
+        if (filename != null) {
+            String lower = filename.toLowerCase(Locale.ROOT);
+            return SUPPORTED_AUDIO_EXTENSIONS.stream().anyMatch(lower::endsWith);
+        }
+        return false;
+    }
+
+    private String sanitizeForSpeech(String text) {
+        if (text == null || text.isBlank()) {
+            return "Operação concluída.";
+        }
+        String normalized = text.trim();
+        if (normalized.length() > MAX_TTS_LENGTH) {
+            return normalized.substring(0, MAX_TTS_LENGTH);
+        }
+        return normalized;
     }
 }

@@ -1,20 +1,19 @@
-# Aula 04 — ChatClient: Fluência e Contexto no Spring AI
+# 04 — ChatClient: API Fluente e Contexto
 
-- **Vídeo correspondente**: `ChatClient Fluência e Contexto no Spring AI.mp4` (~13m17s)
-- **Etapa do Projeto**: Uso da API fluente `ChatClient`, definição de *System Prompt* padrão (`defaultSystem`) e criação do `OpenAiChatClientIT`.
-
----
-
-## 🎯 1. Objetivo da Aula
-
-Evoluir do uso direto de `ChatModel` para o **`ChatClient`**, uma abstração fluente e idiomática do Spring (semelhante ao `WebClient` e `RestClient`) que desacopla o código do provedor específico (OpenAI, Anthropic, Ollama, etc.) e facilita a configuração de mensagens de sistema (*System Message*), templates de prompt e ferramentas (*Tools*).
+- **Escopo**: Uso de `ChatClient`, definição de `defaultSystem` e criação do `OpenAiChatClientIT`.
 
 ---
 
-## 🛠️ 2. Passo a Passo de Implementação
+## 1. Objetivo
 
-### Passo 2.1 — Criar o Teste de Integração `OpenAiChatClientIT.java`
-Crie o arquivo [`src/test/java/dio/budgeting/OpenAiChatClientIT.java`](../../src/test/java/dio/budgeting/OpenAiChatClientIT.java):
+Adotar o `ChatClient` como camada de abstração fluente sobre o `ChatModel`, desacoplando a aplicação do provedor específico de LLM e centralizando prompts de sistema e ferramentas.
+
+---
+
+## 2. Implementação
+
+### 2.1. Teste de Integração (`OpenAiChatClientIT.java`)
+Arquivo [`src/test/java/dio/budgeting/OpenAiChatClientIT.java`](../../src/test/java/dio/budgeting/OpenAiChatClientIT.java):
 
 ```java
 package dio.budgeting;
@@ -45,42 +44,25 @@ public class OpenAiChatClientIT {
                 .content();
 
         assertThat(response).contains("0");
-        System.out.println(response);
     }
 }
 ```
 
-### Passo 2.2 — (Exploratório na Aula) Injetar `ChatClient.Builder` em Beans do Spring
-Em componentes gerenciados pelo Spring (como Controllers ou Services), o Spring AI disponibiliza automaticamente um bean `ChatClient.Builder` pré-configurado com as opções do `application.properties`:
+### 2.2. Injeção via `ChatClient.Builder`
+Em componentes gerenciados pelo Spring, injete `ChatClient.Builder` (auto-configurado pelo Spring AI) em vez da implementação concreta do modelo:
 
 ```java
-@RestController
-@RequestMapping("/api")
-public class ChatClientController {
-    private final ChatClient chatClient;
-
-    public ChatClientController(ChatClient.Builder builder) {
-        this.chatClient = builder.build();
-    }
-
-    @GetMapping("/chat")
-    String chat(String prompt) {
-        return this.chatClient.prompt().user(prompt).call().content();
-    }
+public TransactionController(ChatClient.Builder chatClientBuilder) {
+    this.chatClient = chatClientBuilder
+            .defaultSystem(...)
+            .build();
 }
 ```
 
 ---
 
-## ▶️ 3. Como Executar e Testar
+## 3. Execução
 
-Execute o teste de integração do `ChatClient`:
 ```bash
 ./gradlew test --tests "dio.budgeting.OpenAiChatClientIT"
 ```
-
----
-
-## ✨ 4. Como Refinar no Repositório
-
-- Prefira sempre injetar `ChatClient.Builder` nos seus Controllers/Services em vez de acoplar diretamente a `OpenAiChatModel`. Isso mantém sua camada de orquestração agnóstica de provedor.
