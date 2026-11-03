@@ -52,11 +52,6 @@ flowchart LR
 ```text
 dio-spring-ai-budgeting/
 ├── .github/workflows/ci.yml          # Pipeline de integração contínua (GitHub Actions)
-├── docs/
-│   ├── tutoriais/                    # Documentação técnica das 12 etapas do projeto
-│   ├── EVOLUTION-ROADMAP.md          # Escopo evolutivo e backlog técnico
-│   ├── INSTRUCOES-FINAIS-VALIDACAO-E-ENTREGA.md
-│   └── README-UPSTREAM.md            # Especificação original do módulo
 ├── src/
 │   ├── main/
 │   │   ├── java/dio/budgeting/

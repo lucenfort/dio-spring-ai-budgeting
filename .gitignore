@@ -37,6 +37,7 @@ out/
 .vscode/
 
 ### Environment, Credentials & Local Artifacts ###
+/docs/
 .env
 .env.*
 *.env
